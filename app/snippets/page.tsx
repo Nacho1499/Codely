@@ -60,22 +60,45 @@ export default function SnippetsPage() {
 	});
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	
+	// Pagination state
+	const [offset, setOffset] = useState(0);
+	const [hasMore, setHasMore] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const LIMIT = 12;
 
 	useEffect(() => {
-		fetchSnippets();
+		fetchSnippets(0);
 	}, []);
 
-	const fetchSnippets = async () => {
+	const fetchSnippets = async (currentOffset: number, isLoadMore = false) => {
 		try {
-			setLoading(true);
-			const res = await fetch("/api/snippets");
+			if (isLoadMore) {
+				setLoadingMore(true);
+			} else {
+				setLoading(true);
+			}
+			const res = await fetch(`/api/snippets?limit=${LIMIT}&offset=${currentOffset}`);
 			if (!res.ok) throw new Error("Failed to fetch snippets");
-			setSnippets(await res.json());
+			const data = await res.json();
+			
+			if (isLoadMore) {
+				setSnippets(prev => [...prev, ...data.snippets]);
+			} else {
+				setSnippets(data.snippets);
+			}
+			setHasMore(data.hasMore);
+			setOffset(currentOffset);
 		} catch (e) {
 			console.error(e);
 		} finally {
 			setLoading(false);
+			setLoadingMore(false);
 		}
+	};
+
+	const handleLoadMore = () => {
+		fetchSnippets(offset + LIMIT, true);
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +122,8 @@ export default function SnippetsPage() {
 				},
 			);
 			if (!res.ok) throw new Error("Failed to save snippet");
-			await fetchSnippets();
+			// Reset to first page and fetch fresh data
+			await fetchSnippets(0);
 			handleCancel();
 		} catch (e: any) {
 			console.error(e);
@@ -126,7 +150,8 @@ export default function SnippetsPage() {
 		try {
 			const res = await fetch(`/api/snippets/${id}`, { method: "DELETE" });
 			if (!res.ok) throw new Error("Failed to delete");
-			await fetchSnippets();
+			// Reset to first page and fetch fresh data
+			await fetchSnippets(0);
 		} catch (e) {
 			console.error(e);
 		}
@@ -381,8 +406,9 @@ transition-all duration-200"
 						)}
 					</div>
 				) : (
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-						{snippets.map((snippet) => (
+					<>
+						<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+							{snippets.map((snippet) => (
 							<Card
 								key={snippet.id}
 								className='bg-slate-800/50 border-purple-500/30 backdrop-blur-xl hover:border-purple-500/60 transition overflow-hidden group'>
@@ -449,7 +475,28 @@ transition-all duration-200"
 						))}
 					</div>
 				)}
-			</div>
-		</div>
-	);
-}
+				
+				{/* Load More Button */}
+				{!loading && hasMore && snippets.length > 0 && (
+					<div className="flex justify-center mt-8">
+						<Button
+							onClick={handleLoadMore}
+							disabled={loadingMore}
+							className='rounded-[50px] bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 gap-2 min-w-[160px]'>
+							{loadingMore ? (
+								<>
+									<Loader /> Loading...
+								</>
+							) : (
+								<>Load More</>
+							)}
+						</Button>
+					</div>
+				)}
+				
+				{/* End of results message */}
+				{!loading && !hasMore && snippets.length > 0 && (
+					<div className="text-center mt-8 text-gray-400">
+						<p>You've reached the end. No more snippets to load.</p>
+					</div>
+				)}
