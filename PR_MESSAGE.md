@@ -1,61 +1,88 @@
-# 🚀 Add Universal Stellar Wallet Connect Support
+# 🚀 Add Snippet Versioning Support
 
 ## 📋 Summary
-Implements comprehensive wallet connection functionality for CodeCodely, enabling users to connect their Stellar wallets (Freighter, Albedo, and Lobstr) to the platform. This provides the foundation for wallet-based authentication and future blockchain features.
+
+Implements version history for snippets, allowing users to view past versions and restore them. Every edit creates a new version entry, ensuring accountability and easy rollback.
 
 ## ✨ Features Added
 
-### Wallet Support
-- ✅ **Freighter** - Browser extension wallet with auto-detection and 5-second wait time
-- ✅ **Albedo** - Web-based wallet with instant authentication popup
-- ✅ **Lobstr** - Architecture ready (displays "coming soon" message)
+### Backend
 
-### UI Components
-- **Connect Wallet Button** - Gradient-styled button (purple-to-blue) with wallet icon
-- **Wallet Selection Modal** - Clean dialog with 3 wallet options
-- **Connected State** - Displays shortened public key (GXXX...XXXX) with disconnect functionality
-- **Error Handling** - User-friendly error messages displayed in modal
+- ✅ **Version Storage** - `snippet_versions` table with version metadata (id, snippetId, content, editorId, versionNumber, createdAt)
+- ✅ **Auto-Versioning** - Every snippet edit automatically creates a version entry before updating
+- ✅ **Version History API** - `GET /api/snippets/:id?action=versions` - paginated list of versions
+- ✅ **Version Restore API** - `PUT /api/snippets/:id?action=restore` - restore any previous version (creates new version, no overwrite)
+- ✅ **Optimistic Locking** - `revision` column on snippets table
 
-### State Management
-- Global wallet context using React Context API
-- Tracks: `connected`, `publicKey`, `walletName`, `connecting`, `error`
-- Error clearing on modal reopen
-- Clean disconnect functionality
+### Frontend
+
+- ✅ **Version History Button** - "Version History" button on each snippet card
+- ✅ **Version History Panel** - Dialog showing all past versions with timestamps
+- ✅ **Version Viewer** - View full snippet content (title, description, code, language, tags) for any version
+- ✅ **Restore Functionality** - One-click restore with confirmation dialog
+- ✅ **Pagination** - 10 versions per page for snippets with many edits
 
 ## 🏗️ Technical Implementation
 
-### Architecture
+### Files Changed
+
+```text
+types/type.ts           - Added SnippetVersion & VersionHistory interfaces
+lib/db.ts               - Added version management functions
+app/api/snippets/[id]/route.ts  - Added version endpoints
+components/VersionHistory.tsx   - New UI component
+app/snippets/page.tsx          - Integrated version history button
+scripts/add-versioning.sql     - Database migration script
 ```
-components/
-├── WalletConnect.tsx          # Main wallet logic + UI components
-├── ClientWalletProvider.tsx   # Client wrapper for server components
-└── ui/
-    └── dialog.tsx             # Modal component (Radix UI)
+
+### API Endpoints
+
+| Method | Endpoint                                               | Description          |
+| ------ | ------------------------------------------------------ | -------------------- |
+| GET    | `/api/snippets/:id?action=versions&page=1&pageSize=10` | List version history |
+| GET    | `/api/snippets/:id?action=version&versionId=xxx`       | Get specific version |
+| PUT    | `/api/snippets/:id?action=restore`                     | Restore a version    |
+
+## ⚠️ Database Migration Required
+
+**After merging this PR, run the following SQL in your Neon database:**
+
+```sql
+CREATE TABLE IF NOT EXISTS snippet_versions (
+  id UUID PRIMARY KEY,
+  snippet_id UUID NOT NULL REFERENCES snippets(id) ON DELETE CASCADE,
+  content JSONB NOT NULL,
+  editor_id VARCHAR(255),
+  version_number INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_snippet_versions_snippet_id ON snippet_versions(snippet_id);
+CREATE INDEX IF NOT EXISTS idx_snippet_versions_created_at ON snippet_versions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snippet_versions_version_number ON snippet_versions(snippet_id, version_number DESC);
+
+ALTER TABLE snippets ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 1;
 ```
 
-### Key Functions
-- `connect(walletType)` - Handles wallet-specific connection logic
-- `disconnect()` - Clears wallet state
-- `clearError()` - Resets error state
-- Auto-detection with retry logic for browser extensions
+**Or use the migration file:** `scripts/add-versioning.sql`
 
-### Dependencies Added
-- `@albedo-link/intent` - Albedo wallet integration
+---
 
-## 🎨 Design
-- Matches existing CodeCodely brand (purple/blue gradient)
-- Responsive button with loading states
-- Wallet icon from lucide-react
-- Clean modal with wallet descriptions
-- Error display with red theme
+### Wallet Support (Previous PR)
+
+- ✅ **Freighter** - Browser extension wallet with auto-detection
+- ✅ **Albedo** - Web-based wallet with instant authentication
+- ✅ **Lobstr** - Architecture ready
 
 ## 🔒 Security
+
 - No private keys stored or transmitted
 - Only public key retrieval
 - User must approve each connection
 - Wallet-specific authentication flows respected
 
 ## ✅ Acceptance Criteria Met
+
 - [x] "Connect Wallet" button visible in navbar
 - [x] Freighter wallet support with extension detection
 - [x] Albedo wallet support (fully functional)
@@ -69,7 +96,9 @@ components/
 - [x] No build or runtime errors
 
 ## 🧪 Testing
+
 Tested with:
+
 - ✅ Albedo connection (web-based, works immediately)
 - ✅ Freighter detection and error handling
 - ✅ Modal open/close behavior
@@ -83,20 +112,21 @@ Tested with:
 
 ```tsx
 // Wallet is available globally via context
-import { useWallet } from '@/components/WalletConnect';
+import { useWallet } from "@/components/WalletConnect";
 
 function MyComponent() {
   const { connected, publicKey, connect, disconnect } = useWallet();
-  
+
   if (connected) {
     return <div>Connected: {publicKey}</div>;
   }
-  
-  return <button onClick={() => connect('albedo')}>Connect</button>;
+
+  return <button onClick={() => connect("albedo")}>Connect</button>;
 }
 ```
 
 ## 🚀 Future Enhancements
+
 - Complete Lobstr/WalletConnect integration (requires project ID)
 - Persist wallet connection across page refreshes
 - Add network selection (testnet/mainnet toggle)
@@ -105,15 +135,18 @@ function MyComponent() {
 - Wallet-specific icons instead of emojis
 
 ## 📸 Screenshots
+
 - Connect Wallet button in navbar with gradient styling
 - Modal showing 3 wallet options (Freighter, Albedo, Lobstr)
 - Connected state showing shortened public key
 - Error message display in modal
 
 ## 🔗 Related Issues
+
 Closes #[issue-number] - Add Universal Stellar Wallet Connect Support
 
 ## 📦 Files Changed
+
 - `components/WalletConnect.tsx` (new)
 - `components/ClientWalletProvider.tsx` (modified)
 - `components/ui/dialog.tsx` (new)
@@ -122,9 +155,11 @@ Closes #[issue-number] - Add Universal Stellar Wallet Connect Support
 - `package.json` (added @albedo-link/intent)
 
 ## ⚠️ Breaking Changes
+
 None - This is a new feature addition
 
 ## 🔍 Code Review Notes
+
 - All wallet logic centralized in `WalletConnect.tsx`
 - TypeScript declarations added for browser wallet APIs
 - Error handling with try/catch and user feedback
@@ -133,6 +168,7 @@ None - This is a new feature addition
 - Extensible design pattern for adding new wallets
 
 ## 📚 Documentation
+
 - Added `WALLET_IMPLEMENTATION.md` with full implementation details
 - Inline code comments for wallet-specific logic
 - TypeScript types for better developer experience

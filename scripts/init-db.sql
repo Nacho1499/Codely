@@ -9,10 +9,7 @@ CREATE TABLE snippets (
   language VARCHAR(50) NOT NULL,
   code TEXT NOT NULL,
   tags JSONB DEFAULT '[]'::jsonb,
-  -- Blockchain verification fields
-  on_chain_hash VARCHAR(64),        -- SHA-256 hash of snippet content
-  transaction_hash VARCHAR(64),     -- Stellar transaction hash
-  verified_at TIMESTAMP,             -- When the hash was verified on-chain
+  owner_wallet_address VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
