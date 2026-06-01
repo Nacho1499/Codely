@@ -70,7 +70,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        const pubKey = await freighter.getPublicKey();
+        pubKey = await freighter.getPublicKey();
         if (!pubKey)
           throw new Error("Failed to retrieve public key from Freighter.");
 
@@ -97,9 +97,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             console.error("[transactions] failed to log wallet_connect", e);
           }
         })();
-        pubKey = await freighter.getPublicKey();
-        if (!pubKey)
-          throw new Error("Failed to retrieve public key from Freighter.");
       }
 
       // ==========================

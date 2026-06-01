@@ -9,12 +9,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { SnippetService } from "../snippet.service";
 import { SnippetRepository } from "../snippet.repository";
 import { OwnershipMiddleware } from "../ownership.middleware";
-import {
-  createSnippetVersion,
-  getVersionHistory,
-  getVersionById,
-  restoreVersion,
-} from "@/lib/db";
 import { canView, canEdit } from "@/lib/permissions.service";
 import { ZodError } from "zod";
 
@@ -73,7 +67,10 @@ export async function GET(
       const allowed = await canView(id, walletAddress);
       if (!allowed) {
         return NextResponse.json(
-          { error: "Forbidden", message: "You do not have view access to this snippet." },
+          {
+            error: "Forbidden",
+            message: "You do not have view access to this snippet.",
+          },
           { status: 403 },
         );
       }
@@ -146,7 +143,10 @@ export async function PUT(
     const editAllowed = await canEdit(id, walletAddress);
     if (!editAllowed) {
       return NextResponse.json(
-        { error: "Forbidden", message: "You do not have edit access to this snippet." },
+        {
+          error: "Forbidden",
+          message: "You do not have edit access to this snippet.",
+        },
         { status: 403 },
       );
     }
@@ -231,10 +231,9 @@ export async function DELETE(
       }
     }
 
-    return NextResponse.json({ message: "Snippet deleted successfully" });
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Snippet deleted successfully",
-      note: "Snippet moved to trash. You can restore it from the trash section."
+      note: "Snippet moved to trash. You can restore it from the trash section.",
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Snippet not found") {
