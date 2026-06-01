@@ -41,24 +41,45 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         for (let i = 0; i < 50; i++) {
           if (window.freighter || window.freighterApi) {
             freighter = window.freighter || window.freighterApi;
-            console.log('Freighter detected');
+            console.log("Freighter detected");
             break;
           }
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         if (!freighter) {
           throw new Error(
-            "Freighter wallet not detected. Please install from https://www.freighter.app/ and refresh the page"
+            "Freighter wallet not detected. Please install from https://www.freighter.app/ and refresh the page",
           );
         }
 
         const pubKey = await freighter.getPublicKey();
-        if (!pubKey) throw new Error("Failed to retrieve public key from Freighter.");
+        if (!pubKey)
+          throw new Error("Failed to retrieve public key from Freighter.");
 
         setPublicKey(pubKey);
         setWalletName("Freighter");
         setConnected(true);
+
+        // Log connection to server (best-effort)
+        (async () => {
+          try {
+            await fetch("/api/transactions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-wallet-address": pubKey,
+              },
+              body: JSON.stringify({
+                type: "wallet_connect",
+                description: `Connected via freighter`,
+                metadata: { walletType: "freighter" },
+              }),
+            });
+          } catch (e) {
+            console.error("[transactions] failed to log wallet_connect", e);
+          }
+        })();
       }
 
       // ==========================
@@ -71,6 +92,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setPublicKey(result.pubkey);
         setWalletName("Albedo");
         setConnected(true);
+
+        // Log connection to server (best-effort)
+        (async () => {
+          try {
+            await fetch("/api/transactions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-wallet-address": result.pubkey,
+              },
+              body: JSON.stringify({
+                type: "wallet_connect",
+                description: `Connected via albedo`,
+                metadata: { walletType: "albedo" },
+              }),
+            });
+          } catch (e) {
+            console.error("[transactions] failed to log wallet_connect", e);
+          }
+        })();
       }
 
       // ==========================
@@ -78,7 +119,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // ==========================
       else if (walletType === "lobstr") {
         throw new Error(
-          "Lobstr wallet integration coming soon (requires WalletConnect)."
+          "Lobstr wallet integration coming soon (requires WalletConnect).",
         );
       }
     } catch (err: any) {
@@ -112,10 +153,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       clearError,
     }),
-    [connected, publicKey, walletName, connecting, error]
+    [connected, publicKey, walletName, connecting, error],
   );
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  return (
+    <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
+  );
 }
 
 export const useWallet = () => useContext(WalletContext);
@@ -130,10 +173,18 @@ export function WalletButton() {
 
   if (!wallet) return null;
 
-  const { connected, publicKey, connecting, connect, disconnect, error, clearError } = wallet;
+  const {
+    connected,
+    publicKey,
+    connecting,
+    connect,
+    disconnect,
+    error,
+    clearError,
+  } = wallet;
 
   const handleWalletSelect = async (
-    walletType: "freighter" | "albedo" | "lobstr"
+    walletType: "freighter" | "albedo" | "lobstr",
   ) => {
     setShowModal(false);
     await connect(walletType);
@@ -220,9 +271,7 @@ export function WalletButton() {
             </Button>
           </div>
 
-          {error && (
-            <div className="mt-4 text-red-500 text-sm">{error}</div>
-          )}
+          {error && <div className="mt-4 text-red-500 text-sm">{error}</div>}
         </DialogContent>
       </Dialog>
     </>

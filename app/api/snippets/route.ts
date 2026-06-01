@@ -3,6 +3,7 @@ import { SnippetService } from "./snippet.service";
 import { SnippetRepository } from "./snippet.repository";
 import { OwnershipMiddleware } from "./ownership.middleware";
 import { ZodError } from "zod";
+import { createTransaction } from "@/lib/db";
 
 // Dependency Injection instantiation
 const repository = new SnippetRepository();
@@ -33,6 +34,20 @@ export async function POST(req: NextRequest) {
     }
 
     const snippet = await service.createSnippet(body);
+
+    // Log transaction if wallet address provided
+    if (walletAddress) {
+      try {
+        await createTransaction(
+          walletAddress,
+          "snippet_create",
+          `Created snippet ${snippet.id}`,
+          { snippetId: snippet.id },
+        );
+      } catch (err) {
+        console.error("[transactions] Failed to log snippet_create:", err);
+      }
+    }
 
     return NextResponse.json(snippet, { status: 201 });
   } catch (error) {

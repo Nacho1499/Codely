@@ -187,3 +187,62 @@ export async function restoreVersion(
     throw error;
   }
 }
+
+// ============ Transaction History ============
+
+export async function createTransaction(
+  walletAddress: string,
+  type: string,
+  description: string | null = null,
+  metadata: any = null,
+) {
+  try {
+    const id = crypto.randomUUID();
+    const createdAt = new Date();
+
+    const result = await sql`
+      INSERT INTO transactions (id, wallet_address, type, description, metadata, created_at)
+      VALUES (${id}, ${walletAddress}, ${type}, ${description}, ${metadata ? JSON.stringify(metadata) : null}, ${createdAt})
+      RETURNING *
+    `;
+
+    return result[0] as any;
+  } catch (error) {
+    console.error("[db] Error creating transaction:", error);
+    throw error;
+  }
+}
+
+export async function getTransactionsByWallet(
+  walletAddress: string,
+  page: number = 1,
+  pageSize: number = 20,
+) {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await sql`
+      SELECT COUNT(*) as total
+      FROM transactions
+      WHERE wallet_address = ${walletAddress}
+    `;
+    const total = parseInt(countResult[0]?.total || "0");
+
+    const result = await sql`
+      SELECT * FROM transactions
+      WHERE wallet_address = ${walletAddress}
+      ORDER BY created_at DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `;
+
+    return {
+      transactions: result as any[],
+      total,
+      page,
+      pageSize,
+    };
+  } catch (error) {
+    console.error("[db] Error fetching transactions:", error);
+    throw error;
+  }
+}

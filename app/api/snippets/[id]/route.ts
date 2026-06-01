@@ -1,3 +1,10 @@
+import {
+  createSnippetVersion,
+  getVersionHistory,
+  getVersionById,
+  restoreVersion,
+  createTransaction,
+} from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { SnippetService } from "../snippet.service";
 import { SnippetRepository } from "../snippet.repository";
@@ -89,6 +96,20 @@ export async function PUT(
       }
 
       const restored = await restoreVersion(versionId, editorId || null);
+
+      // Log restore action if wallet provided
+      if (req.headers.get("x-wallet-address")) {
+        try {
+          await createTransaction(
+            req.headers.get("x-wallet-address")!,
+            "version_restore",
+            `Restored version ${versionId} for snippet ${restored.snippet_id}`,
+            { versionId, snippetId: restored.snippet_id },
+          );
+        } catch (err) {
+          console.error("[transactions] Failed to log version_restore:", err);
+        }
+      }
       return NextResponse.json(restored);
     }
 
@@ -115,6 +136,20 @@ export async function PUT(
 
     const body = await req.json();
     const snippet = await service.updateSnippet(id, body);
+
+    // Log update
+    if (walletAddress) {
+      try {
+        await createTransaction(
+          walletAddress,
+          "snippet_update",
+          `Updated snippet ${id}`,
+          { snippetId: id },
+        );
+      } catch (err) {
+        console.error("[transactions] Failed to log snippet_update:", err);
+      }
+    }
 
     return NextResponse.json(snippet);
   } catch (error) {
@@ -163,6 +198,20 @@ export async function DELETE(
     }
 
     await service.deleteSnippet(id);
+
+    // Log delete
+    if (walletAddress) {
+      try {
+        await createTransaction(
+          walletAddress,
+          "snippet_delete",
+          `Deleted snippet ${id}`,
+          { snippetId: id },
+        );
+      } catch (err) {
+        console.error("[transactions] Failed to log snippet_delete:", err);
+      }
+    }
 
     return NextResponse.json({ message: "Snippet deleted successfully" });
   } catch (error) {
