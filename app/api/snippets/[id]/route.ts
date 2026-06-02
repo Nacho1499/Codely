@@ -8,6 +8,7 @@ import {
   getVersionById,
   restoreVersion,
 } from "@/lib/db";
+import { canView, canEdit } from "@/lib/permissions.service";
 import { ZodError } from "zod";
 import { appendActivityLog, extractIp, extractUserAgent } from "@/lib/activity-logger";
 
@@ -55,6 +56,23 @@ export async function GET(
 
     // Default: get snippet by ID via service
     const snippet = await service.getSnippetById(id);
+
+    // Enforce view permission if snippet has an owner
+    const ownerWallet = (snippet as any).owner_wallet_address;
+    if (ownerWallet) {
+      const walletAddress = OwnershipMiddleware.extractWalletAddress(req);
+      if (!walletAddress) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const allowed = await canView(id, walletAddress);
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "Forbidden", message: "You do not have view access to this snippet." },
+          { status: 403 },
+        );
+      }
+    }
+
     return NextResponse.json(snippet);
   } catch (error) {
     if (error instanceof Error && error.message === "Snippet not found") {
@@ -114,14 +132,13 @@ export async function PUT(
       );
     }
 
-    // Verify ownership before update
-    const ownershipResult = await ownershipMiddleware.verifyOwnership(
-      id,
-      walletAddress,
-    );
-
-    if (!ownershipResult.isOwner) {
-      return ownershipResult.error!;
+    // Check edit permission (owner OR granted edit access)
+    const editAllowed = await canEdit(id, walletAddress);
+    if (!editAllowed) {
+      return NextResponse.json(
+        { error: "Forbidden", message: "You do not have edit access to this snippet." },
+        { status: 403 },
+      );
     }
 
     const body = await req.json();
@@ -182,7 +199,8 @@ export async function DELETE(
       return ownershipResult.error!;
     }
 
-    await service.deleteSnippet(id);
+    // Use soft delete instead of hard delete
+    await service.deleteSnippet(id, walletAddress);
 
     // Log the deletion
     await appendActivityLog("snippet.deleted", "snippet", {

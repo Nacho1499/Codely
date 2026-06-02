@@ -15,9 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trash2, Copy, Plus } from "lucide-react";
-import { Navbar } from "@/components/navbar";
+import { Sidebar } from "@/components/Sidebar";
 import Loader from "@/components/ui/loader";
 import { VersionHistoryPanel } from "@/components/VersionHistory";
+import { PermissionsManager } from "@/components/PermissionsManager";
+import { useWallet } from "@/components/WalletConnect";
 
 const LANGUAGES = [
   "javascript",
@@ -43,6 +45,7 @@ interface Snippet {
   code: string;
   language: string;
   tags: string[];
+  owner_wallet_address: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +62,7 @@ interface PaginatedResponse {
 const DEFAULT_LIMIT = 20;
 
 export default function SnippetsPage() {
+  const wallet = useWallet();
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -203,25 +207,19 @@ export default function SnippetsPage() {
   };
 
   return (
-    <div className="min-h-screen relative bg-linear-to-b from-slate-50 via-white to-white">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-32 -left-32 w-125 h-125 rounded-full bg-indigo-100/60 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-16 right-0 w-100 h-100 rounded-full bg-violet-100/50 blur-3xl"
-      />
+    <div className="flex min-h-screen bg-gray-950">
+      <Sidebar />
 
+      <main className="flex-1 min-w-0 relative">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-glow-pulse" />
         <div className="absolute top-40 right-10 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-glow-pulse animation-delay-1000" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:pl-8">
         {/* Page heading row */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-slate-900  ">My Snippets</h1>
+          <h1 className="text-2xl font-bold text-white">My Snippets</h1>
           {!showForm && (
             <Button
               onClick={() => setShowForm(true)}
@@ -477,6 +475,13 @@ transition-all duration-200"
                         snippetId={snippet.id}
                         onRestore={() => fetchSnippets()}
                       />
+                      {snippet.owner_wallet_address && (
+                        <PermissionsManager
+                          snippetId={snippet.id}
+                          snippetTitle={snippet.title}
+                          ownerWalletAddress={snippet.owner_wallet_address}
+                        />
+                      )}
                       <Button
                         onClick={() => handleEdit(snippet)}
                         size="sm"
@@ -525,6 +530,7 @@ transition-all duration-200"
           </>
         )}
       </div>
+      </main>
     </div>
   );
 }

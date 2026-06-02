@@ -5,6 +5,8 @@ import { ZodError } from "zod";
 import { OwnershipMiddleware } from "./ownership.middleware";
 import { SnippetRepository } from "./snippet.repository";
 import { SnippetService } from "./snippet.service";
+import { rateLimit } from "@/lib/rateLimiter";
+import { SearchSnippetsOptions } from "./snippet.repository";
 
 // Default pagination settings
 const DEFAULT_LIMIT = 20;
@@ -15,6 +17,48 @@ const RATE_LIMIT_MAX_REQUESTS = 10;
 // Dependency Injection instantiation
 const repository = new SnippetRepository();
 const service = new SnippetService(repository);
+
+function parseBoundedInteger(
+  value: string | null,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(parsed, min), max);
+}
+
+function parseSearchOptions(req: NextRequest): SearchSnippetsOptions {
+  const { searchParams } = new URL(req.url);
+  const rawTags = searchParams.get("tags");
+
+  return {
+    limit: parseBoundedInteger(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT),
+    offset: parseBoundedInteger(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER),
+    title: searchParams.get("title")?.trim() || undefined,
+    language: searchParams.get("language")?.trim() || undefined,
+    keyword: searchParams.get("keyword")?.trim() || undefined,
+    tags:
+      rawTags
+        ?.split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean) || undefined,
+  };
+}
+
+function hasSearchFilters(options: SearchSnippetsOptions) {
+  return Boolean(
+    options.title ||
+      options.language ||
+      options.keyword ||
+      (options.tags && options.tags.length > 0),
+  );
+}
 
 export async function GET(req: NextRequest) {
   try {
