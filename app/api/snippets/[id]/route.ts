@@ -9,6 +9,7 @@ import {
   restoreVersion,
 } from "@/lib/db";
 import { ZodError } from "zod";
+import { appendActivityLog, extractIp, extractUserAgent } from "@/lib/activity-logger";
 
 // Dependency Injection instantiation
 const repository = new SnippetRepository();
@@ -89,12 +90,22 @@ export async function PUT(
       }
 
       const restored = await restoreVersion(versionId, editorId || null);
+
+      // Log the restore action
+      await appendActivityLog("snippet.restored", "snippet", {
+        actorWallet: await OwnershipMiddleware.extractWalletAddress(req),
+        resourceId:  id,
+        metadata:    { versionId, editorId: editorId || null },
+        ipAddress:   extractIp(req.headers),
+        userAgent:   extractUserAgent(req.headers),
+      });
+
       return NextResponse.json(restored);
     }
 
     // Default: update snippet via service
     // Extract wallet address and verify ownership
-    const walletAddress = OwnershipMiddleware.extractWalletAddress(req);
+    const walletAddress = await OwnershipMiddleware.extractWalletAddress(req);
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -115,6 +126,15 @@ export async function PUT(
 
     const body = await req.json();
     const snippet = await service.updateSnippet(id, body);
+
+    // Log the update
+    await appendActivityLog("snippet.updated", "snippet", {
+      actorWallet: walletAddress,
+      resourceId:  id,
+      metadata:    { title: snippet.title, language: snippet.language },
+      ipAddress:   extractIp(req.headers),
+      userAgent:   extractUserAgent(req.headers),
+    });
 
     return NextResponse.json(snippet);
   } catch (error) {
@@ -143,7 +163,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Extract wallet address and verify ownership
-    const walletAddress = OwnershipMiddleware.extractWalletAddress(req);
+    const walletAddress = await OwnershipMiddleware.extractWalletAddress(req);
 
     if (!walletAddress) {
       return NextResponse.json(
@@ -163,6 +183,15 @@ export async function DELETE(
     }
 
     await service.deleteSnippet(id);
+
+    // Log the deletion
+    await appendActivityLog("snippet.deleted", "snippet", {
+      actorWallet: walletAddress,
+      resourceId:  id,
+      metadata:    {},
+      ipAddress:   extractIp(req.headers),
+      userAgent:   extractUserAgent(req.headers),
+    });
 
     return NextResponse.json({ message: "Snippet deleted successfully" });
   } catch (error) {

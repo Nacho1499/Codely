@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { SnippetService } from "./snippet.service";
-import { SnippetRepository } from "./snippet.repository";
-import { OwnershipMiddleware } from "./ownership.middleware";
-import { ZodError } from "zod";
+import { appendActivityLog, extractIp, extractUserAgent } from "@/lib/activity-logger";
 import { rateLimit } from "@/lib/rateLimiter";
+import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
+import { OwnershipMiddleware } from "./ownership.middleware";
+import { SnippetRepository } from "./snippet.repository";
+import { SnippetService } from "./snippet.service";
 
 // Default pagination settings
 const DEFAULT_LIMIT = 20;
@@ -18,17 +19,17 @@ const service = new SnippetService(repository);
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    
+
     // Parse pagination parameters with validation
     const limit = Math.min(
-      Math.max(parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10),
+      Math.max(parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10), 1),
       MAX_LIMIT
     );
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
 
     // Handle backward compatibility: if no pagination params, return all (first page)
     const result = await service.getAllSnippets({ limit, offset });
-    
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("[API] Error fetching snippets:", error);
@@ -69,12 +70,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Extract and inject the wallet address securely from headers
-    const walletAddress = OwnershipMiddleware.extractWalletAddress(req);
+    const walletAddress = await OwnershipMiddleware.extractWalletAddress(req);
     if (walletAddress) {
       body.ownerWalletAddress = walletAddress;
     }
 
     const snippet = await service.createSnippet(body);
+
+    // Log snippet creation (fire-and-forget — never throws)
+    await appendActivityLog("snippet.created", "snippet", {
+      actorWallet: walletAddress,
+      resourceId: snippet.id,
+      metadata: { title: snippet.title, language: snippet.language, tags: snippet.tags },
+      ipAddress: extractIp(req.headers),
+      userAgent: extractUserAgent(req.headers),
+    });
 
     return NextResponse.json(snippet, { status: 201 });
   } catch (error) {
