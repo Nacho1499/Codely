@@ -3,15 +3,55 @@ import { neon } from "@neondatabase/serverless";
 // Initialise the Neon DB client
 const sql = neon(process.env.DATABASE_URL!);
 
-/** Extract the client IP address from request headers.
- * Supports the standard `x-forwarded-for` header (used when behind a reverse proxy)
- * and the `x-real-ip` fallback. Returns `null` if no IP information is present.
- */
-export function extractIp(headers: Headers): string | null {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    // The header may contain a comma‑separated list; the first entry is the client IP.
-    return forwarded.split(",")[0].trim();
+export type ActivityAction = "DELETE" | "RESTORE" | "CREATE" | "UPDATE" | "SHARE" | "REVOKESHARE";
+
+export interface ActivityLogEntry {
+  id: string;
+  snippetId: string;
+  action: ActivityAction;
+  userWalletAddress: string | null;
+  details: Record<string, any>;
+  createdAt: Date;
+}
+
+export class ActivityLogger {
+  /**
+   * Log an activity action for audit trail
+   */
+  static async log(
+    snippetId: string,
+    action: ActivityAction,
+    userWalletAddress: string | null = null,
+    details: Record<string, any> = {},
+  ): Promise<ActivityLogEntry> {
+    try {
+      const id = crypto.randomUUID();
+      const createdAt = new Date();
+
+      const result = await sql`
+        INSERT INTO activity_logs (id, snippet_id, action, user_wallet_address, details, created_at)
+        VALUES (${id}, ${snippetId}, ${action}, ${userWalletAddress}, ${JSON.stringify(details)}, ${createdAt})
+        RETURNING *
+      `;
+
+      console.log(`[ActivityLog] ${action} logged for snippet ${snippetId}`, {
+        id,
+        userWalletAddress,
+        details,
+      });
+
+      return {
+        id: result[0].id,
+        snippetId: result[0].snippet_id,
+        action: result[0].action,
+        userWalletAddress: result[0].user_wallet_address,
+        details: result[0].details,
+        createdAt: result[0].created_at,
+      };
+    } catch (error) {
+      console.error("[ActivityLog] Error logging activity:", error);
+      throw error;
+    }
   }
   const realIp = headers.get("x-real-ip");
   return realIp ?? null;
