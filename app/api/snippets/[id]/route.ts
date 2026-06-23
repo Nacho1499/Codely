@@ -12,11 +12,13 @@ import { OwnershipMiddleware } from "../ownership.middleware";
 import { canView, canEdit } from "@/lib/permissions.service";
 import { ZodError } from "zod";
 import { appendActivityLog, extractIp, extractUserAgent } from "@/lib/activity-logger";
+import { SignatureMiddleware } from "../signature.middleware";
 
 // Dependency Injection instantiation
 const repository = new SnippetRepository();
 const service = new SnippetService(repository);
 const ownershipMiddleware = new OwnershipMiddleware();
+const signatureMiddleware = new SignatureMiddleware();
 
 export async function GET(
   req: NextRequest,
@@ -230,6 +232,12 @@ export async function DELETE(
 
     if (!ownershipResult.isOwner) {
       return ownershipResult.error!;
+    }
+
+    // Verify wallet signature for this critical action
+    const signatureResult = await signatureMiddleware.verifySignature(req, "delete_snippet", id);
+    if (!signatureResult.isValid) {
+      return signatureResult.error!;
     }
 
     // Use soft delete instead of hard delete
