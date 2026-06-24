@@ -70,7 +70,9 @@ export type ActivityAction =
   | "snippet.soft_deleted"
   | "snippet.restored"
   | "wallet.connected"
-  | "wallet.disconnected";
+  | "wallet.disconnected"
+  | "signature.verified"
+  | "signature.failed";
 
 /** Resource types that can be referenced by a log entry. */
 export type ResourceType = "snippet" | "wallet";
