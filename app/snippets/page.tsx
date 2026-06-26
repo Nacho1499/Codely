@@ -216,16 +216,55 @@ export default function SnippetsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this snippet?")) return;
+    
+    let signatureData = null;
+    
+    // Request wallet signature if connected
+    if (wallet?.connected && wallet?.signAction) {
+      try {
+        signatureData = await wallet.signAction("delete_snippet", id);
+      } catch (err: any) {
+        console.error("Signature failed:", err);
+        alert(`Signature required to delete snippet: ${err.message}`);
+        return; // Abort deletion if signature fails
+      }
+    }
+    
     try {
-      const res = await fetch(`/api/snippets/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      
+      // Include signature headers if available
+      if (signatureData) {
+        headers["x-wallet-signature"] = signatureData.signature;
+        headers["x-wallet-nonce"] = signatureData.nonce;
+        headers["x-wallet-timestamp"] = signatureData.timestamp.toString();
+        headers["x-wallet-address"] = wallet.publicKey;
+      }
+      
+      // Add standard auth header if token exists
+      if (wallet?.token) {
+        headers["Authorization"] = `Bearer ${wallet.token}`;
+      }
+      
+      const res = await fetch(`/api/snippets/${id}`, { 
+        method: "DELETE",
+        headers
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.message || "Failed to delete snippet");
+      }
       
       // Reset pagination and fetch fresh data
       setOffset(0);
       setHasMore(true);
       await fetchSnippets();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(e.message || "An error occurred");
     }
   };
 

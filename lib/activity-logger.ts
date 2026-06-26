@@ -100,14 +100,17 @@ export function extractUserAgent(headers: Headers): string | null {
   return headers.get("user-agent") ?? null;
 }
 
-/** Extract client IP address from request headers. */
-export function extractIp(headers: Headers): string {
-  return (
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+/** Action identifiers for activity logging. Extend this union when adding new events. */
+export type ActivityAction =
+  | "snippet.created"
+  | "snippet.updated"
+  | "snippet.deleted"
+  | "snippet.soft_deleted"
+  | "snippet.restored"
+  | "wallet.connected"
+  | "wallet.disconnected"
+  | "signature.verified"
+  | "signature.failed";
 
 /** Resource types that can be referenced by a log entry. */
 export type ResourceType = "snippet" | "wallet";
