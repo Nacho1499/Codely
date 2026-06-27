@@ -17,10 +17,10 @@ export async function GET(request: Request) {
       message: 'Backup created successfully',
       data: backupMetadata
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Cron/Backup] Error:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

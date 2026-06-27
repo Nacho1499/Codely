@@ -1,6 +1,5 @@
-import { config } from 'dotenv';
-config({ path: '.env.local' });
-config();
+import { loadEnvConfig } from '@next/env';
+loadEnvConfig(process.cwd());
 
 import { restoreBackup, listBackups } from '../lib/backup.service';
 
