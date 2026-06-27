@@ -19,7 +19,7 @@ async function runMigration() {
       // if they contain complex types. We can split them by semicolon and run them one by one.
       // A better way is to use the transaction feature but neon() is a single connection stateless.
       // For simple init, we will try running the whole string.
-      await sql(initDbSql);
+      await sql(initDbSql as unknown as TemplateStringsArray);
       console.log("✅ init-db.sql applied successfully");
     }
 
@@ -28,7 +28,7 @@ async function runMigration() {
     if (fs.existsSync(activityLogsPath)) {
       console.log("Applying add-activity-logs.sql...");
       const activityLogsSql = fs.readFileSync(activityLogsPath, "utf-8");
-      await sql(activityLogsSql);
+      await sql(activityLogsSql as unknown as TemplateStringsArray);
       console.log("✅ add-activity-logs.sql applied successfully");
     }
 
