@@ -32,6 +32,15 @@ async function runMigration() {
       console.log("✅ add-activity-logs.sql applied successfully");
     }
 
+    // 8. Run favorites table
+    const favoritesPath = path.join(process.cwd(), "scripts", "add-favorites.sql");
+    if (fs.existsSync(favoritesPath)) {
+      console.log("Applying add-favorites.sql...");
+      const favoritesSql = fs.readFileSync(favoritesPath, "utf-8");
+      await sql(favoritesSql);
+      console.log("✅ add-favorites.sql applied successfully");
+    }
+
     console.log("Database initialized successfully!");
     process.exit(0);
   } catch (error) {
