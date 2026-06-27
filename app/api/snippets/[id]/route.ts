@@ -67,15 +67,19 @@ export async function GET(
       if (!walletAddress) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      const allowed = await canView(id, walletAddress);
-      if (!allowed) {
-        return NextResponse.json(
-          {
-            error: "Forbidden",
-            message: "You do not have view access to this snippet.",
-          },
-          { status: 403 },
-        );
+
+      // Owner always has access — skip permission check
+      if (walletAddress !== ownerWallet) {
+        const allowed = await canView(id, walletAddress);
+        if (!allowed) {
+          return NextResponse.json(
+            {
+              error: "Forbidden",
+              message: "You do not have view access to this snippet.",
+            },
+            { status: 403 },
+          );
+        }
       }
     }
 
@@ -257,9 +261,6 @@ export async function DELETE(
       }
     }
 
-    return NextResponse.json({
-      message: "Snippet deleted successfully",
-      note: "Snippet moved to trash. You can restore it from the trash section.",
     // Log the deletion
     await appendActivityLog("snippet.deleted", "snippet", {
       actorWallet: walletAddress,
@@ -269,7 +270,10 @@ export async function DELETE(
       userAgent:   extractUserAgent(req.headers),
     });
 
-    return NextResponse.json({ message: "Snippet deleted successfully" });
+    return NextResponse.json({
+      message: "Snippet deleted successfully",
+      note: "Snippet moved to trash. You can restore it from the trash section.",
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Snippet not found") {
       return NextResponse.json({ error: "Snippet not found" }, { status: 404 });
