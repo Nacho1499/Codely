@@ -1,16 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 
-// Lazy initialize sql only when needed
-let sql: ReturnType<typeof neon> | null = null;
-function getSql() {
-  if (!sql) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-    sql = neon(process.env.DATABASE_URL!);
-  }
-  return sql;
-}
+export const sql = neon(process.env.DATABASE_URL!);
 
 // Ensure crypto is available
 import crypto from "crypto";
@@ -219,6 +209,7 @@ export async function createTransaction(
     return result[0] as any;
   } catch (error) {
     console.error("[db] Error creating transaction:", error);
+    throw error;
   }
 }
 
@@ -275,6 +266,7 @@ export async function getTransactionsByWallet(
     };
   } catch (error) {
     console.error("[db] Error fetching transactions:", error);
+    throw error;
   }
 }
 

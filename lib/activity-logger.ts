@@ -12,6 +12,7 @@ function getSql() {
   return sql;
 }
 
+<<<<<<< Codely
 /** Action identifiers for activity logging. Extend this union when adding new events. */
 export type ActivityAction =
   | "DELETE"
@@ -27,6 +28,9 @@ export type ActivityAction =
   | "snippet.restored"
   | "wallet.connected"
   | "wallet.disconnected";
+=======
+// Removed old ActivityAction
+>>>>>>> main
 
 export interface ActivityLogEntry {
   id: string;
@@ -93,6 +97,14 @@ export class ActivityLogger {
       throw error;
     }
   }
+<<<<<<< Codely
+=======
+}
+/** Extract the IP address from request headers. */
+export function extractIp(headers: Headers): string | null {
+  const realIp = headers.get("x-real-ip");
+  return realIp ?? null;
+>>>>>>> main
 }
 
 /** Extract the User‑Agent string from request headers. */
@@ -101,7 +113,13 @@ export function extractUserAgent(headers: Headers): string | null {
 }
 
 /** Action identifiers for activity logging. Extend this union when adding new events. */
-export type ActivityAction =
+export type ActivityAction = 
+  | "DELETE" 
+  | "RESTORE" 
+  | "CREATE" 
+  | "UPDATE" 
+  | "SHARE" 
+  | "REVOKESHARE"
   | "snippet.created"
   | "snippet.updated"
   | "snippet.deleted"
