@@ -19,7 +19,7 @@ export async function verifyAuthentication(req: NextRequest) {
     const token = authHeader.substring(7); // Remove "Bearer " prefix
 
     // Verify JWT
-    const verification = verifyJWT(token);
+    const verification = await verifyJWT(token);
     if (!verification.valid) {
       return null;
     }
@@ -77,7 +77,7 @@ export function withAuth(handler: (req: NextRequest) => Promise<NextResponse>) {
  * Middleware that checks JWT for all requests and returns 401 if invalid
  * Add to middleware.ts or use in route groups
  */
-export function authMiddleware(req: NextRequest) {
+export async function authMiddleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Define protected routes
@@ -101,7 +101,7 @@ export function authMiddleware(req: NextRequest) {
   }
 
   const token = authHeader.substring(7);
-  const verification = verifyJWT(token);
+  const verification = await verifyJWT(token);
 
   if (!verification.valid) {
     return NextResponse.json(

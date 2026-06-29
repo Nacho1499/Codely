@@ -620,7 +620,8 @@ transition-all duration-200"
                     </div>
                   </div>
                 </Card>
-              ))}
+              );
+            })}
             </div>
             
             {/* Load More Button */}
